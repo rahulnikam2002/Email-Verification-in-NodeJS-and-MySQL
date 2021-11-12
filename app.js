@@ -1,9 +1,28 @@
 const express = require('express');
 const nodeMailer = require('nodemailer');
+const exphbs = require('express-handlebars');
 const mysql = require('mysql');
+const bodyParser = require('body-parser');
+
+require('dotenv').config()
 
 const app = express();
 const port = 5000;
+
+
+// Telling our backend that the static files of our website are going to be in which folder!!
+app.use(express.static('public'));
+
+//Template Engines 
+app.engine("hbs", exphbs({ extname: '.hbs' }))
+app.set('view engine', 'hbs');
+
+
+
+app.use(bodyParser.urlencoded({
+    extended: false
+}))
+app.use(bodyParser.json());
 
 // database
 const pool = mysql.createPool({
@@ -22,15 +41,12 @@ pool.getConnection((err, connection) => {
 app.use(express.json())
 
 app.get('/', (req, res) => {
-    res.json({
-        success: 1,
-        message: "You are on Home Page"
-    })
+    res.render('home')
 })
 
 
-app.post('/verify', (req, res) => {
-    const { email } = req.body;
+app.get('/v1/auth/verify/email', (req, res) => {
+    const { userEmail_id } = req.query;
 
     const OTP = Math.floor(1000 + Math.random() * 9000);
 
@@ -44,7 +60,7 @@ app.post('/verify', (req, res) => {
 
     let info = {
         from: `"Rahul Nikam" <codewithrahulnikam@gmail.com>`,
-        to: `${email}`,
+        to: `${userEmail_id}`,
         subject: `Verification of is ${OTP}`,
         text: "",
         html: `${OTP}`
@@ -62,7 +78,7 @@ app.post('/verify', (req, res) => {
             pool.getConnection((err, connection) => {
                 if (err) throw err;
                 console.log('Connected Successfully');
-                connection.query('UPDATE users SET otp = ? WHERE email = ?', [OTP, email], (err, successful) => {
+                connection.query('UPDATE users SET otp = ? WHERE email = ?', [OTP, userEmail_id], (err, successful) => {
                     if (err) {
                         res.json({
                             success: 0,
@@ -71,12 +87,13 @@ app.post('/verify', (req, res) => {
                         })
                     }
                     else {
-                        res.json({
-                            success: 1,
-                            message: `Email has been send on ${email}`,
-                            OTP: `${OTP}`
-                        })
-
+                        // res.json({
+                        //     success: 1,
+                        //     message: `Email has been send on ${userEmail_id}`,
+                        //     OTP: `${OTP}`
+                        // })
+                        // res.redirect(`/v1/verify/email/confirm-email/opt?email=${userEmail_id}`)
+                        res.render('verifypage', {userEmail: userEmail_id})
 
                         // Redirect/Render USER => http://lcoalhost:5000/verify?email_id=codewithrahulnkam@gmail.com
                     }
@@ -87,11 +104,11 @@ app.post('/verify', (req, res) => {
     })
 })
 
-app.get('/email', (req, res) => {
+app.get('/v1/verify/email/confirm-email/opt', (req, res) => {
 
     pool.getConnection((err, connection) => {
         if (err) throw err;
-        connection.query('SELECT otp FROM users WHERE email = ?', [req.query.email], (err, userOTP) => {
+        connection.query('SELECT otp FROM users WHERE email = ?', [req.query.userEmail_id], (err, userOTP) => {
             if (err) {
                 res.json({
                     success: 0,
@@ -111,11 +128,10 @@ app.get('/email', (req, res) => {
     })
 })
 
-app.post('/email', (req, res) => {
-
+app.post('/v1/verify/email/otp/:userEmail', (req, res) => {
     pool.getConnection((err, connection) => {
         if (err) throw err;
-        connection.query('SELECT otp FROM users WHERE email = ?', [req.query.email], (err, userOTP) => {
+        connection.query('SELECT otp FROM users WHERE email = ?', [req.params.userEmail], (err, userOTP) => {
             if (err) {
                 res.json({
                     success: 0,
@@ -125,9 +141,10 @@ app.post('/email', (req, res) => {
             }
             else {
                 let originalOTP = userOTP[0].otp;
-                let userEnteredOTP = req.body.otp;
+                let userEnteredOTP = req.body.userOTP;
+                console.log(userEnteredOTP)
                 if (userEnteredOTP == originalOTP) {
-                    connection.query('UPDATE users SET emailStatus = "verified" WHERE email = ?', [req.query.email], (err, successful) => {
+                    connection.query('UPDATE users SET emailStatus = "verified" WHERE email = ?', [req.params.userEmail], (err, successful) => {
                         if (err) throw err;
 
                         res.json({

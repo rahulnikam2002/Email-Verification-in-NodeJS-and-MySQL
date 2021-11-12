@@ -1,0 +1,8 @@
+<h1>Verify Page</h1>
+
+{{#if userEmail}}
+<form action="/v1/verify/email/otp/{{userEmail}}" method="POST">
+    <input type="text" name="userOTP" placeholder="Enter OTP">
+    <button type="submit">Verify OTP</button>
+</form>
+{{/if}}
