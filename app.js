@@ -37,8 +37,8 @@ app.post('/verify', (req, res) => {
     let transporter = nodeMailer.createTransport({
         service: 'gmail',
         auth: {
-            user: 'codewithrahulnikam@gmail.com',
-            pass: 'rahulnikamwebdev@8767213959'
+            user: process.env.EMAIL,
+            pass: process.env.PASSWORD
         }
     })
 
